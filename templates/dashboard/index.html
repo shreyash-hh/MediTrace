@@ -1,868 +1,534 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediTrace — Pharmacy Analytics & Reorder Dashboard</title>
-    <!-- Modern Typography -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chart.js via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Light Theme (Default) */
-        :root, [data-theme="light"] {
-            --bg-body: #f8fafc;
-            --bg-card: #ffffff;
-            --bg-card-hover: #f1f5f9;
-            --border-color: #e2e8f0;
-            --primary: #2563eb;
-            --primary-light: #eff6ff;
-            --primary-glow: rgba(37, 99, 235, 0.15);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-            --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-            
-            --danger: #dc2626;
-            --danger-bg: #fef2f2;
-            --danger-border: #fecaca;
-            
-            --warning: #d97706;
-            --warning-bg: #fffbeb;
-            --warning-border: #fde68a;
-            
-            --success: #059669;
-            --success-bg: #ecfdf5;
-            --success-border: #a7f3d0;
-            
-            --neutral: #475569;
-            --neutral-bg: #f1f5f9;
-            --neutral-border: #cbd5e1;
+{% extends 'base.html' %}
 
-            --chart-grid: rgba(0, 0, 0, 0.06);
-            --chart-text: #64748b;
-            --chart-tooltip-bg: #1e293b;
-            --chart-tooltip-text: #f8fafc;
-            --table-header-bg: #f8fafc;
-            --table-row-hover: #f8fafc;
-        }
+{% block title %}MediTrace — Analytics & Reorder Dashboard{% endblock %}
 
-        /* Dark Theme */
-        [data-theme="dark"] {
-            --bg-body: #0f172a;
-            --bg-card: #1e293b;
-            --bg-card-hover: #334155;
-            --border-color: rgba(255, 255, 255, 0.08);
-            --primary: #3b82f6;
-            --primary-light: rgba(59, 130, 246, 0.15);
-            --primary-glow: rgba(59, 130, 246, 0.25);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-            --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+{% block extra_head %}
+<!-- Chart.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* KPI Metric Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
 
-            --danger: #f87171;
-            --danger-bg: rgba(239, 68, 68, 0.15);
-            --danger-border: rgba(239, 68, 68, 0.3);
-            
-            --warning: #fbbf24;
-            --warning-bg: rgba(245, 158, 11, 0.15);
-            --warning-border: rgba(245, 158, 11, 0.3);
-            
-            --success: #34d399;
-            --success-bg: rgba(16, 185, 129, 0.15);
-            --success-border: rgba(16, 185, 129, 0.3);
-            
-            --neutral: #94a3b8;
-            --neutral-bg: rgba(107, 114, 128, 0.15);
-            --neutral-border: rgba(107, 114, 128, 0.3);
+    .kpi-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
 
-            --chart-grid: rgba(255, 255, 255, 0.05);
-            --chart-text: #94a3b8;
-            --chart-tooltip-bg: #0f172a;
-            --chart-tooltip-text: #f8fafc;
-            --table-header-bg: rgba(255, 255, 255, 0.02);
-            --table-row-hover: rgba(255, 255, 255, 0.02);
-        }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--card-shadow-hover);
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
-        }
+    .kpi-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
 
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            min-height: 100vh;
-            padding: 28px 24px;
-            line-height: 1.5;
-        }
+    .kpi-value {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+    }
 
-        .container {
-            max-width: 1380px;
-            margin: 0 auto;
-        }
+    .kpi-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 6px;
+    }
 
-        /* Top Header */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 28px;
-        }
+    /* Charts Grid */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
 
-        .brand-title {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .brand-logo {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 22px;
-            color: #ffffff;
-            box-shadow: 0 4px 12px var(--primary-glow);
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            color: var(--text-main);
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 13px;
-            margin-top: 2px;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .select-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            padding: 7px 14px;
-            border-radius: 9px;
-            font-size: 13px;
-            box-shadow: var(--card-shadow);
-        }
-
-        .select-wrapper label {
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        select {
-            background: transparent;
-            border: none;
-            color: var(--text-main);
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .theme-toggle-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 7px 12px;
-            border-radius: 9px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: var(--card-shadow);
-            transition: all 0.2s ease;
-        }
-
-        .theme-toggle-btn:hover {
-            background: var(--bg-card-hover);
-        }
-
-        .btn-admin {
-            background: var(--primary);
-            color: #ffffff;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 9px;
-            font-size: 13px;
-            font-weight: 600;
-            box-shadow: 0 2px 8px var(--primary-glow);
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-admin:hover {
-            opacity: 0.92;
-            transform: translateY(-1px);
-        }
-
-        /* KPI Metric Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-            gap: 16px;
-            margin-bottom: 28px;
-        }
-
-        .kpi-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: var(--card-shadow);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--card-shadow-hover);
-        }
-
-        .kpi-label {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-
-        .kpi-value {
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            line-height: 1.1;
-        }
-
-        .kpi-sub {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 6px;
-        }
-
-        /* Charts Grid */
+    @media (max-width: 1024px) {
         .charts-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 28px;
+            grid-template-columns: 1fr;
         }
+    }
 
-        @media (max-width: 1024px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+    .chart-container {
+        position: relative;
+        height: 310px;
+        width: 100%;
+    }
 
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 24px;
-            box-shadow: var(--card-shadow);
-        }
+    .select-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        box-shadow: var(--card-shadow);
+    }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+    .select-wrapper label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
 
-        .card-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-main);
-        }
+    .select-wrapper select {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        outline: none;
+        cursor: pointer;
+    }
 
-        .card-desc {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
+    .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: currentColor;
+    }
 
-        .chart-container {
-            position: relative;
-            height: 310px;
-            width: 100%;
-        }
+    .pulse {
+        animation: pulse-dot 1.5s infinite;
+    }
 
-        /* Reorder Recommendations Table */
-        .table-card {
-            margin-bottom: 28px;
-        }
+    @keyframes pulse-dot {
+        0% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.85); }
+        100% { opacity: 1; transform: scale(1); }
+    }
 
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-        }
+    .loading-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+        font-size: 14px;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 13px;
-        }
+    .spinner {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: var(--primary);
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 12px;
+    }
 
-        th {
-            background: var(--table-header-bg);
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 11px;
-            letter-spacing: 0.05em;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-        }
+    [data-theme="dark"] .spinner {
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--primary);
+    }
 
-        td {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border-color);
-            vertical-align: middle;
-            color: var(--text-main);
-        }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
 
-        tr:hover td {
-            background: var(--table-row-hover);
-        }
+{% block content %}
+<!-- Dashboard Controls Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
+    <div>
+        <h2 style="font-size: 20px; font-weight: 700;">Pharmacy Analytics & Velocity Dashboard</h2>
+        <p style="font-size: 13px; color: var(--text-muted);">Real-time consumption telemetry, FEFO tracking, and automated reorder triggers</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="select-wrapper">
+            <label for="consumptionWindow">Velocity Window:</label>
+            <select id="consumptionWindow" onchange="loadDashboardData()">
+                <option value="7">Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30" selected>Last 30 Days (Standard)</option>
+                <option value="60">Last 60 Days</option>
+                <option value="90">Last 90 Days</option>
+            </select>
+        </div>
+        <a href="{% url 'inventory:add_stock' %}" class="btn btn-primary btn-sm">➕ Add Stock</a>
+    </div>
+</div>
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-        }
+<!-- KPI Metrics Grid -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label">Active Stock</div>
+        <div class="kpi-value" id="kpiActiveStock" style="color: var(--primary);">--</div>
+        <div class="kpi-sub" id="kpiMedicinesCount">-- medicines across -- batches</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Inflow (IN)</div>
+        <div class="kpi-value" id="kpiTotalIn" style="color: var(--success);">--</div>
+        <div class="kpi-sub">Total stock intake volume</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Outflow (OUT)</div>
+        <div class="kpi-value" id="kpiTotalOut" style="color: var(--danger);">--</div>
+        <div class="kpi-sub">Dispensed / Prescriptions</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Reorder Urgent</div>
+        <div class="kpi-value" id="kpiReorderUrgent" style="color: var(--danger);">--</div>
+        <div class="kpi-sub"><span id="kpiReorderSoon" style="color: var(--warning);">--</span> reorder soon</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Expired Wastage</div>
+        <div class="kpi-value" id="kpiWastageLoss" style="color: var(--danger);">$--</div>
+        <div class="kpi-sub" id="kpiWastageUnits">-- units expired</div>
+    </div>
+</div>
 
-        .status-now {
-            background: var(--danger-bg);
-            color: var(--danger);
-            border: 1px solid var(--danger-border);
-        }
-
-        .status-soon {
-            background: var(--warning-bg);
-            color: var(--warning);
-            border: 1px solid var(--warning-border);
-        }
-
-        .status-ok {
-            background: var(--success-bg);
-            color: var(--success);
-            border: 1px solid var(--success-border);
-        }
-
-        .status-insufficient {
-            background: var(--neutral-bg);
-            color: var(--neutral);
-            border: 1px solid var(--neutral-border);
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background-color: currentColor;
-        }
-
-        .pulse {
-            animation: pulse-dot 1.5s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        /* Loading Overlay */
-        .loading-state {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 28px;
-            height: 28px;
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top-color: var(--primary);
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 12px;
-        }
-
-        [data-theme="dark"] .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--primary);
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <div class="brand-title">
-                <div class="brand-logo">M</div>
-                <div>
-                    <h1>MediTrace Analytics</h1>
-                    <p class="subtitle">Pharmacy Inventory, Velocity Tracking & Reorder Engine</p>
-                </div>
-            </div>
-            <div class="header-actions">
-                <div class="select-wrapper">
-                    <label for="consumptionWindow">Velocity Window:</label>
-                    <select id="consumptionWindow" onchange="loadDashboardData()">
-                        <option value="7">Last 7 Days</option>
-                        <option value="14">Last 14 Days</option>
-                        <option value="30" selected>Last 30 Days (Standard)</option>
-                        <option value="60">Last 60 Days</option>
-                        <option value="90">Last 90 Days</option>
-                    </select>
-                </div>
-                <!-- Theme Toggle Button -->
-                <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Dark / Light Mode">
-                    <span id="themeIcon">🌙</span>
-                    <span id="themeText">Dark</span>
-                </button>
-                <a href="/admin/" class="btn-admin">⚙️ Admin Portal</a>
-            </div>
-        </header>
-
-        <!-- KPI Metrics Grid -->
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">Active Stock</div>
-                <div class="kpi-value" id="kpiActiveStock" style="color: var(--primary);">--</div>
-                <div class="kpi-sub" id="kpiMedicinesCount">-- medicines across -- batches</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Total Inflow (IN)</div>
-                <div class="kpi-value" id="kpiTotalIn" style="color: var(--success);">--</div>
-                <div class="kpi-sub">Total stock intake volume</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Total Outflow (OUT)</div>
-                <div class="kpi-value" id="kpiTotalOut" style="color: var(--danger);">--</div>
-                <div class="kpi-sub">Dispensed / Prescriptions</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Reorder Urgent</div>
-                <div class="kpi-value" id="kpiReorderUrgent" style="color: var(--danger);">--</div>
-                <div class="kpi-sub"><span id="kpiReorderSoon" style="color: var(--warning);">--</span> reorder soon</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Expired Wastage</div>
-                <div class="kpi-value" id="kpiWastageLoss" style="color: var(--danger);">$--</div>
-                <div class="kpi-sub" id="kpiWastageUnits">-- units expired</div>
+<!-- Charts Section -->
+<div class="charts-grid">
+    <!-- Line Chart: Stock Movements & Levels Over Time -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Stock Movements & Balance Over Time</h3>
+                <p class="card-desc">Daily intake (IN), dispense (OUT), and running inventory balance</p>
             </div>
         </div>
-
-        <!-- Charts Section -->
-        <div class="charts-grid">
-            <!-- Line Chart: Stock Movements & Levels Over Time -->
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <h2 class="card-title">Stock Movements & Balance Over Time</h2>
-                        <p class="card-desc">Daily intake (IN), dispense (OUT), and running inventory level</p>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="stockTimelineChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Bar Chart: Wastage by Medicine -->
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <h2 class="card-title">Expiry Wastage by Medicine</h2>
-                        <p class="card-desc">Unused expired stock quantity ($ loss)</p>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="wastageChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reorder Recommendations Table -->
-        <div class="card table-card">
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title">Consumption-Based Reorder Recommendations</h2>
-                    <p class="card-desc">Calculated from dynamic velocity window (Days Remaining = Current Stock ÷ Daily Consumption)</p>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table id="reorderTable">
-                    <thead>
-                        <tr>
-                            <th>Medicine</th>
-                            <th>Category</th>
-                            <th>Current Stock</th>
-                            <th>Avg Daily Outflow</th>
-                            <th>Projected Days Left</th>
-                            <th>Action Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reorderTableBody">
-                        <tr>
-                            <td colspan="6" class="loading-state">
-                                <div class="spinner"></div>
-                                <div>Loading inventory telemetry...</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="chart-container">
+            <canvas id="stockTimelineChart"></canvas>
         </div>
     </div>
 
-    <!-- Dashboard Logic Script -->
-    <script>
-        let stockTimelineChartInstance = null;
-        let wastageChartInstance = null;
-        let cachedDashboardData = null;
+    <!-- Bar Chart: Wastage by Medicine -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Expiry Wastage by Medicine</h3>
+                <p class="card-desc">Unused expired stock quantity ($ loss)</p>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="wastageChart"></canvas>
+        </div>
+    </div>
+</div>
 
-        // Theme Handling
-        function getSavedTheme() {
-            return localStorage.getItem('meditrace_theme') || 'light';
+<!-- Reorder Recommendations Table -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Consumption-Based Reorder Recommendations</h3>
+            <p class="card-desc">Calculated from dynamic velocity window (Days Remaining = Current Stock ÷ Daily Consumption)</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="reorderTable">
+            <thead>
+                <tr>
+                    <th>Medicine</th>
+                    <th>Category</th>
+                    <th>Current Stock</th>
+                    <th>Avg Daily Outflow</th>
+                    <th>Projected Days Left</th>
+                    <th>Action Status</th>
+                </tr>
+            </thead>
+            <tbody id="reorderTableBody">
+                <tr>
+                    <td colspan="6" class="loading-state">
+                        <div class="spinner"></div>
+                        <div>Loading inventory telemetry...</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let stockTimelineChartInstance = null;
+    let wastageChartInstance = null;
+    let cachedDashboardData = null;
+
+    function getChartColors() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            gridColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+            textColor: isDark ? '#94a3b8' : '#64748b',
+            tooltipBg: isDark ? '#0f172a' : '#1e293b',
+            tooltipText: '#f8fafc',
+            primaryLine: isDark ? '#3b82f6' : '#2563eb',
+            primaryFill: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(37, 99, 235, 0.08)',
+            successColor: isDark ? '#34d399' : '#059669',
+            dangerColor: isDark ? '#f87171' : '#dc2626',
+            barBg: isDark ? 'rgba(248, 113, 113, 0.8)' : 'rgba(220, 38, 38, 0.85)',
+            barBorder: isDark ? '#f87171' : '#dc2626'
+        };
+    }
+
+    function onThemeChanged(theme) {
+        if (cachedDashboardData) {
+            renderTimelineChart(cachedDashboardData.timeline);
+            renderWastageChart(cachedDashboardData.wastage);
+        }
+    }
+
+    async function loadDashboardData() {
+        const windowDays = document.getElementById('consumptionWindow').value;
+        const apiUrl = `/dashboard/api/stock-summary/?window=${windowDays}`;
+
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            cachedDashboardData = data;
+
+            renderKPIs(data);
+            renderTimelineChart(data.timeline);
+            renderWastageChart(data.wastage);
+            renderReorderTable(data.reorder_recommendations);
+        } catch (err) {
+            console.error("Failed loading dashboard data:", err);
+            document.getElementById('reorderTableBody').innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--danger); padding: 30px;">
+                        Failed to load dashboard data. Ensure server is running and try again.
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderKPIs(data) {
+        const m = data.metrics;
+        document.getElementById('kpiActiveStock').textContent = Number(m.total_current_stock).toLocaleString();
+        document.getElementById('kpiMedicinesCount').textContent = `${m.total_medicines} medicines across ${m.total_batches} batches`;
+        document.getElementById('kpiTotalIn').textContent = `+${Number(m.total_in).toLocaleString()}`;
+        document.getElementById('kpiTotalOut').textContent = `-${Number(m.total_out).toLocaleString()}`;
+        document.getElementById('kpiReorderUrgent').textContent = m.reorder_urgent_count;
+        document.getElementById('kpiReorderSoon').textContent = `${m.reorder_soon_count}`;
+        document.getElementById('kpiWastageLoss').textContent = `$${Number(m.total_expired_loss).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpiWastageUnits').textContent = `${data.wastage.total_expired_units} units in ${data.wastage.total_expired_batches} batch(es)`;
+    }
+
+    function renderTimelineChart(timeline) {
+        const ctx = document.getElementById('stockTimelineChart').getContext('2d');
+        const colors = getChartColors();
+        const labels = timeline.map(item => item.date);
+        const inData = timeline.map(item => item.in);
+        const outData = timeline.map(item => item.out);
+        const levelData = timeline.map(item => item.net_stock_level);
+
+        if (stockTimelineChartInstance) {
+            stockTimelineChartInstance.destroy();
         }
 
-        function applyTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('meditrace_theme', theme);
-            
-            const themeIcon = document.getElementById('themeIcon');
-            const themeText = document.getElementById('themeText');
-            if (theme === 'dark') {
-                themeIcon.textContent = '☀️';
-                themeText.textContent = 'Light';
-            } else {
-                themeIcon.textContent = '🌙';
-                themeText.textContent = 'Dark';
-            }
-
-            // Re-render charts with updated theme colors if data is loaded
-            if (cachedDashboardData) {
-                renderTimelineChart(cachedDashboardData.timeline);
-                renderWastageChart(cachedDashboardData.wastage);
-            }
-        }
-
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-            const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-            applyTheme(nextTheme);
-        }
-
-        function getChartColors() {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            return {
-                gridColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-                textColor: isDark ? '#94a3b8' : '#64748b',
-                tooltipBg: isDark ? '#0f172a' : '#1e293b',
-                tooltipText: '#f8fafc',
-                primaryLine: isDark ? '#3b82f6' : '#2563eb',
-                primaryFill: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(37, 99, 235, 0.08)',
-                successColor: isDark ? '#34d399' : '#059669',
-                dangerColor: isDark ? '#f87171' : '#dc2626',
-                barBg: isDark ? 'rgba(248, 113, 113, 0.8)' : 'rgba(220, 38, 38, 0.85)',
-                barBorder: isDark ? '#f87171' : '#dc2626'
-            };
-        }
-
-        async function loadDashboardData() {
-            const windowDays = document.getElementById('consumptionWindow').value;
-            const apiUrl = `/dashboard/api/stock-summary/?window=${windowDays}`;
-
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                cachedDashboardData = data;
-
-                renderKPIs(data);
-                renderTimelineChart(data.timeline);
-                renderWastageChart(data.wastage);
-                renderReorderTable(data.reorder_recommendations);
-            } catch (err) {
-                console.error("Failed loading dashboard data:", err);
-                document.getElementById('reorderTableBody').innerHTML = `
-                    <tr>
-                        <td colspan="6" style="text-align: center; color: var(--danger); padding: 30px;">
-                            Failed to load dashboard data. Ensure server is running and try again.
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        function renderKPIs(data) {
-            const m = data.metrics;
-            document.getElementById('kpiActiveStock').textContent = Number(m.total_current_stock).toLocaleString();
-            document.getElementById('kpiMedicinesCount').textContent = `${m.total_medicines} medicines across ${m.total_batches} batches`;
-            document.getElementById('kpiTotalIn').textContent = `+${Number(m.total_in).toLocaleString()}`;
-            document.getElementById('kpiTotalOut').textContent = `-${Number(m.total_out).toLocaleString()}`;
-            document.getElementById('kpiReorderUrgent').textContent = m.reorder_urgent_count;
-            document.getElementById('kpiReorderSoon').textContent = `${m.reorder_soon_count}`;
-            document.getElementById('kpiWastageLoss').textContent = `$${Number(m.total_expired_loss).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            document.getElementById('kpiWastageUnits').textContent = `${data.wastage.total_expired_units} units in ${data.wastage.total_expired_batches} batch(es)`;
-        }
-
-        function renderTimelineChart(timeline) {
-            const ctx = document.getElementById('stockTimelineChart').getContext('2d');
-            const colors = getChartColors();
-            const labels = timeline.map(item => item.date);
-            const inData = timeline.map(item => item.in);
-            const outData = timeline.map(item => item.out);
-            const levelData = timeline.map(item => item.net_stock_level);
-
-            if (stockTimelineChartInstance) {
-                stockTimelineChartInstance.destroy();
-            }
-
-            stockTimelineChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Net Stock Level',
-                            data: levelData,
-                            borderColor: colors.primaryLine,
-                            backgroundColor: colors.primaryFill,
-                            fill: true,
-                            tension: 0.3,
-                            borderWidth: 2.5,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor: colors.primaryLine,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Stock Intake (IN)',
-                            data: inData,
-                            borderColor: colors.successColor,
-                            backgroundColor: colors.successColor,
-                            borderWidth: 2,
-                            tension: 0.2,
-                            pointRadius: 3.5,
-                            yAxisID: 'y1'
-                        },
-                        {
-                            label: 'Dispensed (OUT)',
-                            data: outData,
-                            borderColor: colors.dangerColor,
-                            backgroundColor: colors.dangerColor,
-                            borderWidth: 2,
-                            tension: 0.2,
-                            pointRadius: 3.5,
-                            yAxisID: 'y1'
-                        }
-                    ]
+        stockTimelineChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Net Stock Level',
+                        data: levelData,
+                        borderColor: colors.primaryLine,
+                        backgroundColor: colors.primaryFill,
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: colors.primaryLine,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Stock Intake (IN)',
+                        data: inData,
+                        borderColor: colors.successColor,
+                        backgroundColor: colors.successColor,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 3.5,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Dispensed (OUT)',
+                        data: outData,
+                        borderColor: colors.dangerColor,
+                        backgroundColor: colors.dangerColor,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 3.5,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
+                plugins: {
+                    legend: {
+                        labels: { color: colors.textColor, font: { family: 'Inter', size: 12, weight: '500' } }
                     },
-                    plugins: {
-                        legend: {
-                            labels: { color: colors.textColor, font: { family: 'Inter', size: 12, weight: '500' } }
-                        },
-                        tooltip: {
-                            backgroundColor: colors.tooltipBg,
-                            titleColor: colors.tooltipText,
-                            bodyColor: colors.tooltipText,
-                            borderColor: colors.gridColor,
-                            borderWidth: 1,
-                            padding: 10
-                        }
+                    tooltip: {
+                        backgroundColor: colors.tooltipBg,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.gridColor,
+                        borderWidth: 1,
+                        padding: 10
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.textColor, font: { family: 'Inter', size: 11 } }
                     },
-                    scales: {
-                        x: {
-                            grid: { color: colors.gridColor },
-                            ticks: { color: colors.textColor, font: { family: 'Inter', size: 11 } }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: { display: true, text: 'Total Net Stock', color: colors.textColor, font: { family: 'Inter', size: 11, weight: '600' } },
-                            grid: { color: colors.gridColor },
-                            ticks: { color: colors.textColor }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: { display: true, text: 'Daily Movement (Units)', color: colors.textColor, font: { family: 'Inter', size: 11, weight: '600' } },
-                            grid: { drawOnChartArea: false },
-                            ticks: { color: colors.textColor }
-                        }
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Total Net Stock', color: colors.textColor, font: { family: 'Inter', size: 11, weight: '600' } },
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.textColor }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Daily Movement (Units)', color: colors.textColor, font: { family: 'Inter', size: 11, weight: '600' } },
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: colors.textColor }
                     }
                 }
-            });
+            }
+        });
+    }
+
+    function renderWastageChart(wastage) {
+        const ctx = document.getElementById('wastageChart').getContext('2d');
+        const colors = getChartColors();
+        const items = wastage.by_medicine || [];
+
+        if (wastageChartInstance) {
+            wastageChartInstance.destroy();
         }
 
-        function renderWastageChart(wastage) {
-            const ctx = document.getElementById('wastageChart').getContext('2d');
-            const colors = getChartColors();
-            const items = wastage.by_medicine || [];
+        if (items.length === 0) {
+            items.push({ medicine_name: 'No Expired Stock', expired_units: 0, estimated_loss: 0 });
+        }
 
-            if (wastageChartInstance) {
-                wastageChartInstance.destroy();
-            }
+        const labels = items.map(i => i.medicine_name);
+        const units = items.map(i => i.expired_units);
 
-            if (items.length === 0) {
-                items.push({ medicine_name: 'No Expired Stock', expired_units: 0, estimated_loss: 0 });
-            }
-
-            const labels = items.map(i => i.medicine_name);
-            const units = items.map(i => i.expired_units);
-
-            wastageChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Expired Units',
-                        data: units,
-                        backgroundColor: colors.barBg,
-                        borderColor: colors.barBorder,
-                        borderWidth: 1.5,
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: colors.tooltipBg,
-                            titleColor: colors.tooltipText,
-                            bodyColor: colors.tooltipText,
-                            borderColor: colors.gridColor,
-                            borderWidth: 1,
-                            padding: 10,
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const item = items[context.dataIndex];
-                                    return `Est. Loss: $${item ? item.estimated_loss : 0}`;
-                                }
+        wastageChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Expired Units',
+                    data: units,
+                    backgroundColor: colors.barBg,
+                    borderColor: colors.barBorder,
+                    borderWidth: 1.5,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBg,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.gridColor,
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const item = items[context.dataIndex];
+                                return `Est. Loss: $${item ? item.estimated_loss : 0}`;
                             }
                         }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: colors.textColor, font: { family: 'Inter', size: 11 } }
                     },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: colors.textColor, font: { family: 'Inter', size: 11 } }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: colors.gridColor },
-                            ticks: { color: colors.textColor }
-                        }
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.textColor }
                     }
                 }
-            });
+            }
+        });
+    }
+
+    function renderReorderTable(recommendations) {
+        const tbody = document.getElementById('reorderTableBody');
+        if (!recommendations || recommendations.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No medicines recorded in system.</td></tr>`;
+            return;
         }
 
-        function renderReorderTable(recommendations) {
-            const tbody = document.getElementById('reorderTableBody');
-            if (!recommendations || recommendations.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No medicines recorded in system.</td></tr>`;
-                return;
+        tbody.innerHTML = recommendations.map(r => {
+            let badgeClass = 'status-success';
+            let dotClass = '';
+            if (r.status === 'REORDER NOW') {
+                badgeClass = 'status-danger';
+                dotClass = 'pulse';
+            } else if (r.status === 'REORDER SOON') {
+                badgeClass = 'status-warning';
+            } else if (r.status === 'INSUFFICIENT DATA') {
+                badgeClass = 'status-neutral';
             }
 
-            tbody.innerHTML = recommendations.map(r => {
-                let badgeClass = 'status-ok';
-                let dotClass = '';
-                if (r.status === 'REORDER NOW') {
-                    badgeClass = 'status-now';
-                    dotClass = 'pulse';
-                } else if (r.status === 'REORDER SOON') {
-                    badgeClass = 'status-soon';
-                } else if (r.status === 'INSUFFICIENT DATA') {
-                    badgeClass = 'status-insufficient';
-                }
+            const daysStr = (r.projected_days_remaining !== null) 
+                ? `<strong>${r.projected_days_remaining}</strong> days` 
+                : '<span style="color: var(--text-muted);">N/A (no outflow)</span>';
 
-                const daysStr = (r.projected_days_remaining !== null) 
-                    ? `<strong>${r.projected_days_remaining}</strong> days` 
-                    : '<span style="color: var(--text-muted);">N/A (no outflow)</span>';
+            return `
+                <tr>
+                    <td><strong>${r.medicine_name}</strong></td>
+                    <td style="color: var(--text-muted); font-weight: 500;">${r.category}</td>
+                    <td><strong>${r.current_stock.toLocaleString()}</strong> <span style="color: var(--text-muted); font-size: 12px;">${r.unit}</span></td>
+                    <td>${r.avg_daily_consumption} ${r.unit}/day <span style="font-size: 11px; color: var(--text-muted);">(${r.total_consumption} total)</span></td>
+                    <td>${daysStr}</td>
+                    <td>
+                        <span class="status-badge ${badgeClass}">
+                            <span class="status-dot ${dotClass}"></span>
+                            ${r.status}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
 
-                return `
-                    <tr>
-                        <td><strong>${r.medicine_name}</strong></td>
-                        <td style="color: var(--text-muted); font-weight: 500;">${r.category}</td>
-                        <td><strong>${r.current_stock.toLocaleString()}</strong> <span style="color: var(--text-muted); font-size: 12px;">${r.unit}</span></td>
-                        <td>${r.avg_daily_consumption} ${r.unit}/day <span style="font-size: 11px; color: var(--text-muted);">(${r.total_consumption} total)</span></td>
-                        <td>${daysStr}</td>
-                        <td>
-                            <span class="status-badge ${badgeClass}">
-                                <span class="status-dot ${dotClass}"></span>
-                                ${r.status}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Initialize Theme & Data on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = getSavedTheme();
-            applyTheme(savedTheme);
-            loadDashboardData();
-        });
-    </script>
-</body>
-</html>
+    document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
+{% endblock %}

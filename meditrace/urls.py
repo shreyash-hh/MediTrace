@@ -10,6 +10,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('dashboard/', include('dashboard.urls')),
     path('inventory/', include('inventory.urls')),
-    # Redirect root URL to admin for easy navigation during v1 skeleton phase
-    path('', lambda request: redirect('admin/', permanent=False)),
+    # Redirect root URL to inventory stock overview
+    path('', lambda request: redirect('inventory:stock_overview', permanent=False)),
 ]

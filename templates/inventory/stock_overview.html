@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock Overview — MediTrace{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">Medicine Stock Overview</h2>
+            <p class="card-desc">Real-time inventory levels, batch status, and nearest expiration dates</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{% url 'inventory:add_stock' %}" class="btn btn-primary">➕ Add Stock</a>
+            <a href="{% url 'inventory:record_usage' %}" class="btn btn-secondary">➖ Record Usage</a>
+        </div>
+    </div>
+
+    <!-- Quick Stats Ribbon -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Total Medicines</div>
+            <div style="font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--primary);">{{ total_medicines }}</div>
+        </div>
+        <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Total Active Units</div>
+            <div style="font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--success);">{{ total_active_stock }}</div>
+        </div>
+        <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Expiring Soon (&le;30d)</div>
+            <div style="font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--warning);">{{ expiring_soon_count }}</div>
+        </div>
+        <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Urgent Reorder / Low</div>
+            <div style="font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--danger);">{{ low_stock_count }}</div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Medicine Name</th>
+                    <th>Category</th>
+                    <th>Active Stock</th>
+                    <th>Active Batches</th>
+                    <th>Nearest Expiry</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in medicine_list %}
+                <tr>
+                    <td>
+                        <strong style="font-size: 14px;">{{ item.medicine.name }}</strong>
+                        {% if item.medicine.manufacturer %}
+                            <div style="font-size: 11px; color: var(--text-muted);">Mfr: {{ item.medicine.manufacturer }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="color: var(--text-muted); font-weight: 500;">
+                            {{ item.medicine.category|default:"General" }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="font-size: 14px;">{{ item.total_stock }}</strong>
+                        <span style="font-size: 12px; color: var(--text-muted);">{{ item.medicine.unit }}</span>
+                    </td>
+                    <td>
+                        <span style="font-size: 13px;">{{ item.active_batches_count }} batch(es)</span>
+                    </td>
+                    <td>
+                        {% if item.nearest_expiry %}
+                            <div>{{ item.nearest_expiry|date:"Y-m-d" }}</div>
+                            {% if item.days_until_expiry < 0 %}
+                                <span style="font-size: 11px; color: var(--danger); font-weight: 600;">Expired {{ item.days_until_expiry|stringformat:"+d"|slice:"1:" }}d ago</span>
+                            {% elif item.days_until_expiry <= 30 %}
+                                <span style="font-size: 11px; color: var(--warning); font-weight: 600;">in {{ item.days_until_expiry }} day(s)</span>
+                            {% else %}
+                                <span style="font-size: 11px; color: var(--text-muted);">in {{ item.days_until_expiry }} days</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--text-muted);">No active batches</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'Out of Stock' or item.status == 'REORDER NOW' %}
+                            <span class="status-badge status-danger">🔴 {{ item.status }}</span>
+                        {% elif item.status == 'Expiring Soon' or item.status == 'REORDER SOON' %}
+                            <span class="status-badge status-warning">🟡 {{ item.status }}</span>
+                        {% elif item.status == 'OK' %}
+                            <span class="status-badge status-success">🟢 In Stock</span>
+                        {% else %}
+                            <span class="status-badge status-neutral">⚪ {{ item.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'inventory:record_usage' %}?medicine_id={{ item.medicine.id }}" class="btn btn-secondary btn-sm" title="Record usage for this medicine">
+                            Deduct
+                        </a>
+                        <a href="{% url 'inventory:add_stock' %}?medicine_id={{ item.medicine.id }}" class="btn btn-primary btn-sm" title="Add batch for this medicine">
+                            + Batch
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                        No medicines found in the system. Click <strong>Add Stock</strong> to register your first medicine batch.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <span style="font-size: 12px; color: var(--text-muted);">
+            💡 FEFO (First Expiry First Out) rule applies automatically when recording usage.
+        </span>
+        <a href="{% url 'dashboard:index' %}" style="font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 600;">
+            View Detailed Velocity Charts & Analytics &rarr;
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Record Usage / Sale — MediTrace{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 720px; margin: 0 auto;">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">Record Medicine Usage / Dispensing</h2>
+            <p class="card-desc">Deducts stock automatically using FEFO (First Expiry First Out) algorithm</p>
+        </div>
+        <a href="{% url 'inventory:stock_overview' %}" class="btn btn-secondary btn-sm">&larr; Back to Stock</a>
+    </div>
+
+    <!-- Informational Banner -->
+    <div style="background: var(--primary-light); border: 1px solid var(--border-color); padding: 14px 16px; border-radius: 10px; margin-bottom: 24px; font-size: 13px; color: var(--text-main);">
+        <strong style="color: var(--primary);">ℹ️ Automated FEFO Protocol:</strong>
+        <p style="margin-top: 4px; color: var(--text-muted);">
+            The system automatically identifies and depletes the earliest expiring active batch first. If the requested quantity exceeds the earliest batch, it seamlessly draws the remainder from subsequent batches and logs individual <strong>OUT</strong> audit entries.
+        </p>
+    </div>
+
+    <form method="POST" action="{% url 'inventory:record_usage' %}">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label class="form-label" for="medicine_id">Select Medicine *</label>
+            <select name="medicine_id" id="medicine_id" class="form-select" required onchange="updateStockInfo()">
+                <option value="">-- Choose Medicine to Dispense --</option>
+                {% for item in medicine_stock_list %}
+                    <option value="{{ item.medicine.id }}" 
+                            data-stock="{{ item.total_stock }}" 
+                            data-unit="{{ item.medicine.unit }}"
+                            data-batches="{{ item.active_batches_count }}"
+                            {% if selected_medicine_id == item.medicine.id or form_data.medicine_id == item.medicine.id|stringformat:"i" %}selected{% endif %}>
+                        {{ item.medicine.name }} — Available: {{ item.total_stock }} {{ item.medicine.unit }} ({{ item.active_batches_count }} batch{% if item.active_batches_count != 1 %}es{% endif %})
+                    </option>
+                {% endfor %}
+            </select>
+            <div id="stockBadge" style="margin-top: 8px; font-size: 13px; font-weight: 600; display: none;"></div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="quantity">Quantity to Deduct *</label>
+            <input type="number" name="quantity" id="quantity" class="form-control" min="1" step="1" required placeholder="e.g., 20" value="{{ form_data.quantity|default:'' }}">
+            <div class="form-text">Must be greater than 0 and less than or equal to total available active stock.</div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="reason">Dispensing Reason / Order Reference</label>
+            <input type="text" name="reason" id="reason" class="form-control" placeholder="e.g., Prescription #RX-4098, OPD patient sale, Ward emergency" value="{{ form_data.reason|default:'Prescription dispensing' }}">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+            <a href="{% url 'inventory:stock_overview' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">
+                ➖ Deduct Stock via FEFO
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function updateStockInfo() {
+        const select = document.getElementById('medicine_id');
+        const badge = document.getElementById('stockBadge');
+        const selectedOption = select.options[select.selectedIndex];
+
+        if (selectedOption && selectedOption.value) {
+            const stock = parseInt(selectedOption.getAttribute('data-stock') || '0', 10);
+            const unit = selectedOption.getAttribute('data-unit') || 'units';
+            const batches = selectedOption.getAttribute('data-batches') || '0';
+
+            badge.style.display = 'block';
+            if (stock > 0) {
+                badge.innerHTML = `<span style="color: var(--success);">Available Stock: <strong>${stock.toLocaleString()} ${unit}</strong> across ${batches} active batch(es)</span>`;
+            } else {
+                badge.innerHTML = `<span style="color: var(--danger);">⚠️ Out of Stock! No active batches available for deduction.</span>`;
+            }
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', updateStockInfo);
+</script>
+{% endblock %}
